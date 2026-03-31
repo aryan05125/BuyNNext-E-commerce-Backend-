@@ -23,10 +23,27 @@ const productSchema = new mongoose.Schema({
     image: {
         type: String
     },
+   
+    reviews: [{
+        user: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User"
+        },
+        name: String,
+        rating: Number,
+        comment: String
+    }],
+    numReviews: {
+        type: Number,
+        default: 0
+    },
     ratings: {
         type: Number,
         default: 0
     }
+
+
+    
 }, { timestamps: true });
 
 module.exports = mongoose.model("Product", productSchema);

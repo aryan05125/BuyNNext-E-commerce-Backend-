@@ -1,6 +1,8 @@
 const Order = require("../models/Order");
 const Cart = require("../models/Cart");
-
+const Product = require("../models/Product");
+const sendEmail = require("../utils/sendEmail");
+const User = require("../models/User");
  exports.placeOrder = async (req, res) => {
     try {
         const cart = await Cart.findOne({ user: req.user._id })
@@ -65,7 +67,7 @@ const Cart = require("../models/Cart");
 
  exports.updateOrderStatus = async (req, res) => {
     try {
-        const { status } = req.body; // ✅ FIX
+        const { status } = req.body; 
 
          if (!status) {
             return res.status(400).json({ message: "Status is required" });
@@ -82,6 +84,102 @@ const Cart = require("../models/Cart");
 
         res.json({
             message: "Order status updated",
+            order
+        });
+
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+exports.placeOrder = async (req, res) => {
+    try {
+        const cart = await Cart.findOne({ user: req.user._id })
+            .populate("items.product");
+
+        if (!cart || cart.items.length === 0) {
+            return res.status(400).json({ message: "Cart is empty" });
+        }
+
+        let total = 0;
+
+        const orderItems = [];
+
+        for (const item of cart.items) {
+
+             if (item.product.stock < item.quantity) {
+                return res.status(400).json({
+                    message: `${item.product.name} out of stock`
+                });
+            }
+
+             item.product.stock -= item.quantity;
+            await item.product.save();
+
+            total += item.product.price * item.quantity;
+
+            orderItems.push({
+                product: item.product._id,
+                quantity: item.quantity
+            });
+        }
+
+        const order = await Order.create({
+            user: req.user._id,
+            items: orderItems,
+            totalPrice: total
+        });
+
+         cart.items = [];
+        await cart.save();
+
+        res.status(201).json({
+            message: "Order placed successfully",
+            order
+        });
+
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+exports.placeOrder = async (req, res) => {
+    try {
+        const cart = await Cart.findOne({ user: req.user._id })
+            .populate("items.product");
+
+        if (!cart || cart.items.length === 0) {
+            return res.status(400).json({ message: "Cart is empty" });
+        }
+
+        let total = 0;
+
+        const orderItems = cart.items.map(item => {
+            total += item.product.price * item.quantity;
+
+            return {
+                product: item.product._id,
+                quantity: item.quantity
+            };
+        });
+
+        const order = await Order.create({
+            user: req.user._id,
+            items: orderItems,
+            totalPrice: total
+        });
+
+         const user = await User.findById(req.user._id);
+
+         await sendEmail(
+            user.email,
+            "Order Confirmed 🛒",
+            `Your order is placed successfully!\nTotal: ₹${total}`
+        );
+
+        cart.items = [];
+        await cart.save();
+
+        res.status(201).json({
+            message: "Order placed + Email sent ✅",
             order
         });
 
