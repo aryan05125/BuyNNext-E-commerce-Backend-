@@ -207,7 +207,7 @@ It reflects:
 
 ## 👨‍💻 Author
 
-Aryan – Backend Developer 🚀
+Aryan -
 Passionate about building scalable systems & real-world products.
 
 ---
